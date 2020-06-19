@@ -13,8 +13,8 @@
 #define vegas_cycles 1 // numero di iterazioni vegas
 #define dim 2 // numero di variabili della funzione integranda
 #define Nc 10 // numero di suddivisioni degli intervalli di integrazione
-#define NTHREADS 256
-#define NBLOCKS 64
+#define NTHREADS 16
+#define NBLOCKS 4
 #define RNG_MAX 4294967295 
 #define DEFAULT_SEED 5234
 
@@ -29,13 +29,18 @@
 		
 __global__ void generate_kernel(curandStateMtgp32 *state, double *result)
 {
-    int id = threadIdx.x + blockIdx.x * NTHREADS;
+    int id = threadIdx.x + blockIdx.x * blockDim.x;
     /* Generate pseudo-random unsigned ints */
     result[id] = (double) curand(&state[blockIdx.x]) / RNG_MAX;
 }
 
+__global__ void integration(curandStateMtgp32 *state, float *grid, float *spacings, float *I, float *E)
+{
+	int tid = threadIdx.x + blockIdx.x * blockDim.x; 
+}
+
 // definizione della funzione integranda
-float f(float r[dim])
+__device__ float f(float r[dim])
 {
 	return r[0] + r[1];	
 }
@@ -97,15 +102,45 @@ int main ()
 
 	for(int i = 0; i < NBLOCKS * NTHREADS; i++) { printf("host_result[%d] = %f\n", i, host_results[i]); }
 
+	// riprendo il discorso principale
+
+	float *dev_grid;
+	CUDA_CALL(cudaMalloc((void**)&dev_grid, dim * (Nc + 1) * sizeof(float)));
+	CUDA_CALL(cudaMemcpy(dev_grid, grid,  dim * (Nc + 1) * sizeof(float), cudaMemcpyHostToDevice));
+
+	float *dev_spacings;
+	CUDA_CALL(cudaMalloc((void**)&dev_spacings, dim * Nc * sizeof(float)));
+	CUDA_CALL(cudaMemcpy(dev_spacings, spacings,  dim * Nc * sizeof(float), cudaMemcpyHostToDevice));
+
+	float I[vegas_cycles]; 
+	float E[vegas_cycles];
+
+	float *dev_I, *dev_E;
+
+	CUDA_CALL(cudaMalloc((void**)&dev_I, vegas_cycles * sizeof(float)));
+	CUDA_CALL(cudaMemset(dev_I, 0, vegas_cycles * sizeof(float)));
+
+	CUDA_CALL(cudaMalloc((void**)&dev_E, vegas_cycles * sizeof(float)));
+	CUDA_CALL(cudaMemset(dev_E, 0, vegas_cycles * sizeof(float)));
+
 	// cicli vegas
 	for (int it = 0; it < vegas_cycles; it++)
 	{
 		printf("\n###### ITERAZIONE VEGAS %d ######\n\n", it);
+
+		integration<<<NBLOCKS,NTHREADS>>>(devMTGPStates, dev_grid, dev_spacings, dev_I, dev_E);
 	}
 	
+	CUDA_CALL(cudaMemcpy(I, dev_I, vegas_cycles * sizeof(float), cudaMemcpyDeviceToHost));
+	for(int i = 0; i < vegas_cycles; i++) { printf("I[%d] = %f\n", i, I[i]); }
+
   CUDA_CALL(cudaFree(devMTGPStates));
   CUDA_CALL(cudaFree(dev_results));
-
+  CUDA_CALL(cudaFree(dev_grid));
+  CUDA_CALL(cudaFree(dev_spacings));
+  CUDA_CALL(cudaFree(dev_I));
+  CUDA_CALL(cudaFree(dev_E));
+ 
  	return EXIT_SUCCESS;
 }
 
