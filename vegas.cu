@@ -243,6 +243,12 @@ int main ()
 
 	int seed = DEFAULT_SEED;
 
+	float time = 0;
+
+  cudaEvent_t start, stop;
+  CUDA_CALL(cudaEventCreate(&start));
+  CUDA_CALL(cudaEventCreate(&stop));
+
 	// definizione della griglia di integrazione e inizializzazione con equispaziature
 	double grid[dim * (Nc + 1)];
 	for(int i = 0; i < dim; i++)
@@ -324,6 +330,8 @@ int main ()
 		
 		printf("\n###### ITERAZIONE VEGAS %d ######\n\n", it);
 
+    CUDA_CALL(cudaEventRecord(start, 0));
+
 		integration<<<NBLOCKS,NTHREADS>>>(devMTGPStates, dev_grid, dev_spacings, dev_I, dev_A, dev_abs_I, dev_E, Nh);
 
 		CUDA_CALL(cudaMemcpy(&S, dev_I, sizeof(double), cudaMemcpyDeviceToHost));
@@ -336,6 +344,12 @@ int main ()
 		CUDA_CALL(cudaMemcpy(pdfs, dev_pdfs, dim * Nc * sizeof(double), cudaMemcpyDeviceToHost));
 
 		adaptation(grid, spacings, pdfs);
+
+    CUDA_CALL(cudaEventRecord(stop, 0));
+    CUDA_CALL(cudaEventSynchronize(stop));
+    float elapsed = 0;
+    CUDA_CALL(cudaEventElapsedTime(&elapsed, start, stop));
+    time += elapsed;    
 
 		I[it] = S;
 		E[it] = err;
@@ -352,10 +366,17 @@ int main ()
   for (int i = 0; i < vegas_cycles; i++) { I_avg += E_avg * I[i] / E[i]; }
   for(int i = 0; i < vegas_cycles; i++) { chi2 += pow( (I[i] - I_avg) , 2) / E[i]; }
 
+	printf("\n#####################################################################\n\n\n");
+
 	printf("Stima globale dell'integrale = %f\n", I_avg);
 	printf("Stima globale dell'errore = %f\n", sqrt(E_avg));
 	printf("chi quadro = %f\n", chi2);
 	printf("chi quadro per iterazione (meno uno) = %f\n", chi2 / (vegas_cycles - 1));
+
+	printf("\nElapsed_time = %f\n\n", time / 1000.);
+
+  CUDA_CALL(cudaEventDestroy(start));
+  CUDA_CALL(cudaEventDestroy(stop));
 
   CUDA_CALL(cudaFree(devMTGPStates));
   CUDA_CALL(cudaFree(dev_results));
