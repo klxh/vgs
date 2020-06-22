@@ -4,12 +4,13 @@
 #include <time.h>
 
 #define K 1000
-#define dim 8
+#define dim 10
 #define alpha 1.5
 
 #define vegas_cycles 3
-#define Nc 5
-#define N 100
+#define Nc 3
+#define N 2000
+#define printon false
 const int Nh = pow(Nc, dim);
 
 
@@ -19,8 +20,8 @@ double f(double r[dim])
   return exp(-50 * pow((r[0] - 0.5), 2)) / sqrt(2 * M_PI * 0.01) * exp(-50 * pow((r[1] - 0.5), 2)) / sqrt(2 * M_PI * 0.01)
   * exp(-50 * pow((r[2] - 0.5), 2)) / sqrt(2 * M_PI * 0.01) * exp(-50 * pow((r[3] - 0.5), 2)) / sqrt(2 * M_PI * 0.01)
   * exp(-50 * pow((r[4] - 0.5), 2)) / sqrt(2 * M_PI * 0.01) * exp(-50 * pow((r[5] - 0.5), 2)) / sqrt(2 * M_PI * 0.01)
-  * exp(-50 * pow((r[6] - 0.5), 2)) / sqrt(2 * M_PI * 0.01) * exp(-50 * pow((r[7] - 0.5), 2)) / sqrt(2 * M_PI * 0.01);
-//  * exp(-50 * pow((r[8] - 0.5), 2)) / sqrt(2 * M_PI * 0.01) * exp(-50 * pow((r[9] - 0.5), 2)) / sqrt(2 * M_PI * 0.01);
+  * exp(-50 * pow((r[6] - 0.5), 2)) / sqrt(2 * M_PI * 0.01) * exp(-50 * pow((r[7] - 0.5), 2)) / sqrt(2 * M_PI * 0.01)
+  * exp(-50 * pow((r[8] - 0.5), 2)) / sqrt(2 * M_PI * 0.01) * exp(-50 * pow((r[9] - 0.5), 2)) / sqrt(2 * M_PI * 0.01);
 }
 
 
@@ -34,11 +35,11 @@ int main()
   for(int i = 0; i < dim; i++)
   {
     grid[i][0] = 0;
-    printf("grid[%d][0] = %f\n", i, grid[i][0] );
+    if(printon) { printf("grid[%d][0] = %f\n", i, grid[i][0] ); }
     for(int j = 1; j < Nc + 1; j++)
     {
       grid[i][j] += grid[i][j - 1] + 1./Nc;
-      printf("grid[%d][%d] = %f\n", i, j, grid[i][j] );
+      if(printon) { printf("grid[%d][%d] = %f\n", i, j, grid[i][j] ); }
     }
   }
 
@@ -54,7 +55,7 @@ int main()
   {
     clock_t start = clock();
     
-    printf("##############################\nIterazione di VEGAS # %d\n\n", iter + 1);
+    printf("##############################\nIterazione di VEGAS # %d\n\n", iter); 
 
     double abs_S = 0;
     double partial_S[Nh]; for (int i = 0; i < Nh; i++) { partial_S[i] = 0; }
@@ -92,7 +93,6 @@ int main()
 		printf("Integrale = %f\n", I[iter]);
 		printf("Errore quadratico = %f\n", E[iter]);
     printf("\n##############################\n");
-
     
     double pdfs[dim][Nc]; for (int i = 0; i < dim; i++) { for (int j = 0; j < Nc; j++) { pdfs[i][j] = 0; } };
     for(int i = 0; i < Nh; i++)
@@ -169,22 +169,22 @@ int main()
           if (l[p] == 0) { p++; }
         }
         count += spacings[direction][k]; // risommo i sottointervalli (check)
-				printf("spacings[%d][%d] = %f\n", direction, k, spacings[direction][k]);
+				if(printon) { printf("spacings[%d][%d] = %f\n", direction, k, spacings[direction][k]); }
       }
-			printf("\ncount = %f\n##########################\n", count);
+			if(printon) { printf("\ncount = %f\n##########################\n", count); }
     }
 
     for(int i = 0; i < dim; i++)
     {
       grid[i][0] = 0;
-			printf("\ngrid[%d][0] = %f\n", i, grid[i][0]);
+			if(printon) { printf("\ngrid[%d][0] = %f\n", i, grid[i][0]); }
       for(int j = 1; j < Nc + 1; j++)
       {
         grid[i][j] = 0;
         grid[i][j] += grid[i][j - 1] + spacings[i][j - 1];
-				printf("grid[%d][%d] = %f\n", i, j, grid[i][j]);
+				if(printon) { printf("grid[%d][%d] = %f\n", i, j, grid[i][j]); }
       }
-      printf("\n##############################\n");
+      if(printon) { printf("\n##############################\n"); }
     }
 
     clock_t end = clock();

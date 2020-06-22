@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>
 
 #include <cuda.h>
 #include <curand_kernel.h>
@@ -12,15 +13,16 @@
 
 
 #define vegas_cycles 3 // numero di iterazioni vegas
-#define dim 8 // numero di variabili della funzione integranda
-#define Nc 5 // numero di suddivisioni degli intervalli di integrazione
+#define dim 10 // numero di variabili della funzione integranda
+#define Nc 3 // numero di suddivisioni degli intervalli di integrazione
 #define NTHREADS 256
 #define NBLOCKS 128
 #define RNG_MAX 4294967295 
 #define DEFAULT_SEED 5234
-#define N 10
+#define N 1000
 #define alpha 1.5
 #define K 1000
+#define printon false
 const unsigned int Nh = pow(Nc, dim);
 
 #define CUDA_CALL(x) do { if((x) != cudaSuccess) { \
@@ -51,7 +53,6 @@ __device__ double myatomicAdd(double* address, double val)
 // definizione della funzione integranda
 __device__ double f(double r[dim])
 {
-//	return r[0] + r[1];	
   return exp(-50 * pow((r[0] - 0.5), 2)) / sqrt(2 * M_PI * 0.01) * exp(-50 * pow((r[1] - 0.5), 2)) / sqrt(2 * M_PI * 0.01)
   * exp(-50 * pow((r[2] - 0.5), 2)) / sqrt(2 * M_PI * 0.01) * exp(-50 * pow((r[3] - 0.5), 2)) / sqrt(2 * M_PI * 0.01)
   * exp(-50 * pow((r[4] - 0.5), 2)) / sqrt(2 * M_PI * 0.01) * exp(-50 * pow((r[5] - 0.5), 2)) / sqrt(2 * M_PI * 0.01)
@@ -217,22 +218,22 @@ void adaptation(double *grid, double *spacings, double * pdfs)
         if (l[p] == 0) { p++; }
       }
       count += spacings[direction * Nc + k]; // risommo i sottointervalli (check)
-			printf("spacings[%d][%d] = %f\n", direction, k, spacings[direction * Nc + k]);
+			if(printon)	{ printf("spacings[%d][%d] = %f\n", direction, k, spacings[direction * Nc + k]); }
     }
-		printf("\ncount = %f\n##############################\n", count);
+		if(printon) { printf("\ncount = %f\n##############################\n", count); }
   }
 
   for(int i = 0; i < dim; i++)
   {
     grid[i * (Nc + 1)] = 0;
-		printf("\ngrid[%d][0] = %f\n", i, grid[i * (Nc + 1)]);
+		if(printon) {	printf("\ngrid[%d][0] = %f\n", i, grid[i * (Nc + 1)]); }
     for(int j = 1; j < Nc + 1; j++)
     {
       grid[i * (Nc + 1) + j] = 0;
       grid[i * (Nc + 1) + j] += grid[i * (Nc + 1) + j - 1] + spacings[i * Nc + j - 1];
-			printf("grid[%d][%d] = %f\n", i, j, grid[i * (Nc + 1) + j]);
+			if(printon) {	printf("grid[%d][%d] = %f\n", i, j, grid[i * (Nc + 1) + j]); }
     }
-		printf("\n##############################\n");
+		if(printon) { printf("\n##############################\n"); }
   }
 }
 
@@ -241,7 +242,7 @@ int main ()
 {
   CUDA_CALL(cudaSetDevice(0));
 
-	int seed = DEFAULT_SEED;
+	int seed = time(NULL);
 
 	float time = 0;
 
@@ -254,11 +255,11 @@ int main ()
 	for(int i = 0; i < dim; i++)
 	{
 		grid[i * (Nc + 1)] = 0;
-		printf("grid[%d][%d] = %f\n", i, 0, grid[i * (Nc + 1)]);
+		if(printon) { printf("grid[%d][%d] = %f\n", i, 0, grid[i * (Nc + 1)]); }
 		for(int j = 1; j < Nc + 1; j++)
 		{
 			grid[i * (Nc + 1) + j] = grid[i * (Nc + 1) + j - 1] + 1./Nc;
-		  printf("grid[%d][%d] = %f\n", i, j, grid[i * (Nc + 1) + j]);
+			if(printon) { printf("grid[%d][%d] = %f\n", i, j, grid[i * (Nc + 1) + j]); }
 		}
 	}
 
